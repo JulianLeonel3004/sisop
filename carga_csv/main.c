@@ -8,9 +8,41 @@ ID	Nombre	Apellido	Anio	Materia
 Este main solo genera procesos y llama a las funciones que deben ser desarrolladas para su funcionamiento
  */
 #include "definiciones.h"
-#include "parametros.c"
-#include "generador.c"
-#include "coordinador.c"
+#include "parametros.h"
+#include "generador.h"
+#include "coordinador.h"
+
+// Declaración de función
+Alumno* crear_memoria_compartida();
+
+
+Alumno* crear_memoria_compartida(){
+     int shmid; // Identificador de la memoria compartida
+    // Generar una clave única para la memoria compartida
+    // "shmfile" debe ser un archivo existente
+    // 65 es un ID arbitrario para diferenciar claves
+    key_t key = ftok("shmfile", 65);
+
+    // Crear/acceder a la memoria compartida
+    // sizeof(Alumno) reserva espacio para un registro Alumno
+    // 0666 → permisos lectura/escritura para todos
+    // IPC_CREAT → crea la memoria si no existe
+    shmid = shmget(key, sizeof(Alumno), 0666 | IPC_CREAT);
+    if (shmid < 0) {
+        perror("shmget"); // Imprime error si falla la creación
+        return NULL;      // Termina el programa
+    }
+
+    // Asociar la memoria compartida al espacio de direcciones del proceso
+    // shm_ptr apunta a la memoria compartida
+    Alumno *shm_ptr = (Alumno*) shmat(shmid, NULL, 0);
+    if (shm_ptr == (void*) -1) {
+        perror("shmat"); // Imprime error si falla la asociación
+        return NULL;
+    }
+
+    return shm_ptr;
+}
 
 int main(void)
 {
@@ -124,32 +156,4 @@ int main(void)
     }
 
     return 0;
-}
-
-Alumno* crear_memoria_compartida(){
-     int shmid; // Identificador de la memoria compartida
-    // Generar una clave única para la memoria compartida
-    // "shmfile" debe ser un archivo existente
-    // 65 es un ID arbitrario para diferenciar claves
-    key_t key = ftok("shmfile", 65);
-
-    // Crear/acceder a la memoria compartida
-    // sizeof(Alumno) reserva espacio para un registro Alumno
-    // 0666 → permisos lectura/escritura para todos
-    // IPC_CREAT → crea la memoria si no existe
-    shmid = shmget(key, sizeof(Alumno), 0666 | IPC_CREAT);
-    if (shmid < 0) {
-        perror("shmget"); // Imprime error si falla la creación
-        return 1;         // Termina el programa
-    }
-
-    // Asociar la memoria compartida al espacio de direcciones del proceso
-    // shm_ptr apunta a la memoria compartida
-    Alumno *shm_ptr = (Alumno*) shmat(shmid, NULL, 0);
-    if (shm_ptr == (void*) -1) {
-        perror("shmat"); // Imprime error si falla la asociación
-        return 1;
-    }
-
-    return shm_ptr;
 }

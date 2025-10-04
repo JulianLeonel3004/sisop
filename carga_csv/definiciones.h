@@ -1,3 +1,6 @@
+#ifndef DEFINICIONES_H
+#define DEFINICIONES_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -11,3 +14,5 @@ typedef struct {
     int anio;
     char materia[MAX_STR + 1];
 } Alumno;
+
+#endif // DEFINICIONES_H

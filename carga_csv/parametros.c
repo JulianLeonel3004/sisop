@@ -24,6 +24,9 @@
 
     Que por ahora están hardcodeadas
  */
+#include <stdio.h>
+#include "parametros.h"
+
 void funcion_prueba_parametros()
 {
     printf("Soy parametros\n");
