@@ -8,12 +8,47 @@ ID	Nombre	Apellido	Anio	Materia
 Este main solo genera procesos y llama a las funciones que deben ser desarrolladas para su funcionamiento
  */
 #include "definiciones.h"
+#include "parametros.h"
+#include "generador.h"
+#include "coordinador.h"
+
+// Declaración de función
+Alumno* crear_memoria_compartida();
+
+
+Alumno* crear_memoria_compartida(){
+     int shmid; // Identificador de la memoria compartida
+    // Generar una clave única para la memoria compartida
+    // "shmfile" debe ser un archivo existente
+    // 65 es un ID arbitrario para diferenciar claves
+    key_t key = ftok("shmfile", 65);
+
+    // Crear/acceder a la memoria compartida
+    // sizeof(Alumno) reserva espacio para un registro Alumno
+    // 0666 → permisos lectura/escritura para todos
+    // IPC_CREAT → crea la memoria si no existe
+    shmid = shmget(key, sizeof(Alumno), 0666 | IPC_CREAT);
+    if (shmid < 0) {
+        perror("shmget"); // Imprime error si falla la creación
+        return NULL;      // Termina el programa
+    }
+
+    // Asociar la memoria compartida al espacio de direcciones del proceso
+    // shm_ptr apunta a la memoria compartida
+    Alumno *shm_ptr = (Alumno*) shmat(shmid, NULL, 0);
+    if (shm_ptr == (void*) -1) {
+        perror("shmat"); // Imprime error si falla la asociación
+        return NULL;
+    }
+
+    return shm_ptr;
+}
 
 int main(void)
 {
     int cant_registros = 3;
     int cant_generadores = 2;
-    int pipe_peticion[cant_generadores][2];
+    int pipe_peticion[cant_generadores][2]; //primer [] cuantos de pipe, segundo [] representa lectura y escritura
     int pipe_respuesta[cant_generadores][2];
 
     funcion_prueba_parametros();
@@ -30,6 +65,8 @@ int main(void)
             exit(1);
         }
     }
+
+    Alumno *mem_comp = crear_memoria_compartida();
 
     // crear array de pid para generadores
     pid_t *pids = malloc((cant_generadores + 1) * sizeof(pid_t));
@@ -61,7 +98,7 @@ int main(void)
 
 
                // Proceso coordinador
-                printf("Coordinador: PID=%d\n", getpid());
+             /*   printf("Coordinador: PID=%d\n", getpid());
 
                 for (int g = 0; g < cant_generadores; g++) {
                     close(pipe_peticion[g][1]);   // el coordinador solo lee peticiones
@@ -77,12 +114,12 @@ int main(void)
                     write(pipe_respuesta[g][1], &respuesta, sizeof(int));
                 }
 
-                exit(0);
+                exit(0);*/
             }
             else
             {
                 // AGREGAR GENERADOR
-                funcion_prueba_generador();
+                generador(pipe_peticion, pipe_respuesta, i, mem_comp);
 
                 /*
                 Prueba de comunicación entre procesos
@@ -90,7 +127,7 @@ int main(void)
 
                 //
                // Proceso generador
-                int idx = i - 1;
+              /*  int idx = i - 1;
                 close(pipe_peticion[idx][0]);   // generador solo escribe petición
                 close(pipe_respuesta[idx][1]);  // generador solo lee respuesta
 
@@ -102,7 +139,7 @@ int main(void)
                 read(pipe_respuesta[idx][0], &respuesta, sizeof(int));
                 printf("Generador %d recibió respuesta %d\n", idx, respuesta);
 
-                exit(0);
+                exit(0);*/
             }
 
         }

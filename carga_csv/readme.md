@@ -1,11 +1,11 @@
 Para compilar y crear ejecutable
-gcc main.c -o main
+gcc -o programa main.c generador.c coordinador.c parametros.c
 
 Se ejecuta 
-./main
+./programa
 
 
-el nombre "main" sin la extensión ".c" es un nombre custom que se puede elegir al momento de crear el ejecutable
+el nombre "programa" es un nombre custom que se puede elegir al momento de crear el ejecutable
 
 
 
