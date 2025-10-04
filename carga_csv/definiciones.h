@@ -2,6 +2,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include "parametros.c"
-#include "generador.c"
-#include "coordinador.c"
+#include <sys/shm.h>       // Para shmget(), shmat(), shmdt(), shmctl()
+#define MAX_STR 10
+typedef struct {
+    int id;
+    char nombre[MAX_STR + 1];   // +1 para el '\0' (fin de cadena)
+    char apellido[MAX_STR + 1];
+    int anio;
+    char materia[MAX_STR + 1];
+} Alumno;
