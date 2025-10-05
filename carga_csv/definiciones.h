@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/shm.h>       // Para shmget(), shmat(), shmdt(), shmctl()
+#include <semaphore.h>
+#include <fcntl.h>           // Para las flags O_CREAT, O_EXCL
 #define MAX_STR 10
 typedef struct {
     int id;

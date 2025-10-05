@@ -15,6 +15,17 @@ Este main solo genera procesos y llama a las funciones que deben ser desarrollad
 // Declaración de función
 Alumno* crear_memoria_compartida();
 
+sem_t* crear_semaforo_generador();
+
+sem_t* crear_semaforo_generador(){
+    sem_t *sem = sem_open("/sem_generador", O_CREAT, 0644, 1);
+    if (sem == SEM_FAILED) {
+        perror("sem_open");
+        exit(1);
+    }
+
+    return sem;
+}
 
 Alumno* crear_memoria_compartida(){
      int shmid; // Identificador de la memoria compartida
@@ -67,6 +78,7 @@ int main(void)
     }
 
     Alumno *mem_comp = crear_memoria_compartida();
+    sem_t *sem_generador = crear_semaforo_generador();
 
     // crear array de pid para generadores
     pid_t *pids = malloc((cant_generadores + 1) * sizeof(pid_t));
@@ -119,7 +131,7 @@ int main(void)
             else
             {
                 // AGREGAR GENERADOR
-                generador(pipe_peticion, pipe_respuesta, i, mem_comp);
+                generador(pipe_peticion, pipe_respuesta, i, mem_comp, sem_generador);
 
                 /*
                 Prueba de comunicación entre procesos
@@ -154,6 +166,10 @@ int main(void)
      for (int i = 0; i <= cant_generadores; i++) {
         waitpid(pids[i], NULL, 0);
     }
+
+    sem_close(sem_generador);           // Cierra el descriptor
+    sem_unlink("/sem_generador");       // Elimina del sistema
+
 
     return 0;
 }
