@@ -11,6 +11,14 @@ Este main solo genera procesos y llama a las funciones que deben ser desarrollad
 #include "parametros.h"
 #include "generador.h"
 #include "coordinador.h"
+#include <sys/mman.h>
+
+int *bloque_actual_compartido;
+sem_t *sem_bloque;
+//SEMAFOROS DE MEMORIA COMPARTIDA
+sem_t *Mutex;
+sem_t *Capacidad_memoria;
+sem_t *Cantidad_registro;
 
 // Declaración de función
 Alumno* crear_memoria_compartida();
@@ -68,6 +76,12 @@ int main(void)
 
     Alumno *mem_comp = crear_memoria_compartida();
 
+    bloque_actual_compartido = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS,-1, 0);
+    *bloque_actual_compartido = 0;
+    sem_bloque = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    //sem_init(sem_bloque, 1, 1);
+
+
     // crear array de pid para generadores
     pid_t *pids = malloc((cant_generadores + 1) * sizeof(pid_t));
     if (pids == NULL)
@@ -89,32 +103,7 @@ int main(void)
 
             if(i == 0)
             {
-                // AGREGAR COORDINADOR
-                funcion_prueba_coordinador();
-
-                /*
-                Prueba de comunicación entre procesos
-                */
-
-
-               // Proceso coordinador
-             /*   printf("Coordinador: PID=%d\n", getpid());
-
-                for (int g = 0; g < cant_generadores; g++) {
-                    close(pipe_peticion[g][1]);   // el coordinador solo lee peticiones
-                    close(pipe_respuesta[g][0]); // el coordinador solo escribe respuestas
-                }
-
-                for (int g = 0; g < cant_generadores; g++) {
-                    int pedido;
-                    read(pipe_peticion[g][0], &pedido, sizeof(int));
-                    printf("Coordinador recibió pedido %d del generador %d\n", pedido, g);
-
-                    int respuesta = pedido * 2; // Ejemplo: el coordinador "procesa" el número
-                    write(pipe_respuesta[g][1], &respuesta, sizeof(int));
-                }
-
-                exit(0);*/
+                coordinador(pipe_respuesta, mem_comp, cant_registros);
             }
             else
             {
@@ -149,6 +138,11 @@ int main(void)
             pids[i] = pid;
         }
     }
+
+    // Liberar memoria y semáforo
+    sem_close(sem_bloque);
+    munmap(sem_bloque, sizeof(sem_t));
+    munmap(bloque_actual_compartido, sizeof(int));
 
    // free(pids);
      for (int i = 0; i <= cant_generadores; i++) {
