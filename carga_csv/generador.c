@@ -27,6 +27,7 @@ void generador(int (*pipe_peticion)[2], int (*pipe_respuesta)[2], int idx_pipe, 
         snprintf(mem_comp->apellido, MAX_STR+1, "Apellido%d", i);
         mem_comp->anio = i;
         snprintf(mem_comp->materia, MAX_STR+1, "Materia%d", i);
+        mem_comp->leido = 0;
     }
     
 

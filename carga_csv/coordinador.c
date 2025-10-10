@@ -4,33 +4,27 @@
 #include <time.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include "cola.h"
+#include <sys/ipc.h>
+#include <sys/msg.h>
 #include "definiciones.h"
 #define LECTURA 0
 #define ESCRITURA 1
 
-void coordinador(int (*pipe_respuesta)[2], Alumno* mem_comp, int cant_registros){
-    int id_cola;
+void coordinador(int (*pipe_respuesta)[2], Alumno* mem_comp, int cant_registros, int id_cola){
     struct mensaje msg;
     int contador_registro = 0;
-
-    // Acceder a la cola existente
-    id_cola = msgget(CLAVE_COLA, 0666 | IPC_CREAT); //crea una cola de mensajes (o la abre si ya existe)
-    if (id_cola == -1) {
-        perror("No puede acceder a la cola");
-        exit(1);
-    }
+    Alumno alumno;
 
     printf("[Coordinador] Esperando mensajes...\n");
     while (1) {
-        int id_generador = msg.generador_id;
+      //  int id_generador = msg.generador_id;
 
-        if (msgrcv(id_cola, &msg, sizeof(msg.generador_id), 0, 0) == -1) {
+        if (msgrcv(id_cola, &msg, sizeof(msg), 0, 0) == -1) {
             perror("No puede recibir el mensaje");
             exit(1);
         }
 
-        printf("[Coordinador] Recibido: %d\n", msg.generador_id);
+        printf("[Coordinador] Recibido de generador: %d\n", msg.generador_id);
         //GENERAR IDS
         generar_y_enviar_ids(pipe_respuesta, msg.generador_id);
 
@@ -38,8 +32,24 @@ void coordinador(int (*pipe_respuesta)[2], Alumno* mem_comp, int cant_registros)
         if(contador_registro >= cant_registros){
             break;
         }
-        //GUARDAR EN CSV
-        guardarAlumnoCSV(mem_comp, "alumnos.csv", contador_registro);
+        
+        sem_wait(nuevo_alumno);
+        sem_wait(Mutex);
+        if(!mem_comp->leido) {
+            alumno.id = mem_comp->id;
+            snprintf(alumno.nombre, MAX_STR+1, "%s", mem_comp->nombre); 
+            snprintf(alumno.apellido, MAX_STR+1, "%s", mem_comp->apellido);
+            alumno.anio = mem_comp->anio;
+            snprintf(alumno.materia, MAX_STR+1, "%s", mem_comp->materia);
+            mem_comp->leido = 1;
+             //GUARDAR EN CSV
+        }
+        sem_post(Mutex);
+        sem_post(alumno_leido);
+
+
+        guardarAlumnoCSV(alumno, "alumnos.csv", contador_registro);
+    
     }
 
     // Eliminar cola
@@ -72,11 +82,11 @@ void generar_y_enviar_ids(int (*pipe_respuesta)[2], int id_generador) {
         lista.ids[j] = temp;
     }
     
-    //Espero la respuesta con las 10 ids y lo guardo en la variable ids
+    //se envia la respuesta de los 10 ids
     write(pipe_respuesta[id_generador][ESCRITURA], lista.ids, sizeof(int) * lista.cantidad);
 }
 
-void guardarAlumnoCSV(Alumno* mem_comp, const char* filename, int contador_registro) {
+void guardarAlumnoCSV(Alumno alumno, const char* filename, int contador_registro) {
     FILE* fp = fopen(filename, "a");
     if (fp == NULL) {
         perror("Error abriendo archivo CSV");
@@ -88,11 +98,11 @@ void guardarAlumnoCSV(Alumno* mem_comp, const char* filename, int contador_regis
 
     // Escribir el alumno
     fprintf(fp, "%d,%s,%s,%d,%s\n",
-            mem_comp->id,
-            mem_comp->nombre,
-            mem_comp->apellido,
-            mem_comp->anio,
-            mem_comp->materia);
+            alumno.id,
+            alumno.nombre,
+            alumno.apellido,
+            alumno.anio,
+            alumno.materia);
 
     fclose(fp);
     printf("Alumno guardado en %s\n", filename);

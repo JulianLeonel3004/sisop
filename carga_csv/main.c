@@ -12,6 +12,10 @@ Este main solo genera procesos y llama a las funciones que deben ser desarrollad
 #include "generador.h"
 #include "coordinador.h"
 #include <sys/mman.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <semaphore.h>
+#include <sys/wait.h>
 
 int *bloque_actual_compartido;
 sem_t *sem_bloque;
@@ -20,9 +24,12 @@ sem_t *Mutex;
 sem_t *Capacidad_memoria;
 sem_t *Cantidad_registro;
 
+//Semaforos sumo al mutex
+sem_t *alumno_leido;
+sem_t *nuevo_alumno;
+
 // Declaración de función
 Alumno* crear_memoria_compartida();
-
 
 Alumno* crear_memoria_compartida(){
      int shmid; // Identificador de la memoria compartida
@@ -52,6 +59,17 @@ Alumno* crear_memoria_compartida(){
     return shm_ptr;
 }
 
+int crear_cola() {
+    int id_cola = 0;
+     // Acceder a la cola existente
+    id_cola = msgget(CLAVE_COLA, 0666 | IPC_CREAT); //crea una cola de mensajes (o la abre si ya existe)
+    if (id_cola == -1) {
+        perror("No puede acceder a la cola");
+        exit(1);
+    }
+    return id_cola;
+}
+
 int main(void)
 {
     int cant_registros = 3;
@@ -64,10 +82,6 @@ int main(void)
 
     // CREAR los pipes ANTES de fork
     for (int g = 0; g < cant_generadores; g++) {
-        if (pipe(pipe_peticion[g]) < 0) {
-            perror("pipe_peticion falló");
-            exit(1);
-        }
         if (pipe(pipe_respuesta[g]) < 0) {
             perror("pipe_respuesta falló");
             exit(1);
@@ -76,11 +90,15 @@ int main(void)
 
     Alumno *mem_comp = crear_memoria_compartida();
 
+    int id_cola = crear_cola();
+
     bloque_actual_compartido = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS,-1, 0);
     *bloque_actual_compartido = 0;
     sem_bloque = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     //sem_init(sem_bloque, 1, 1);
 
+    alumno_leido = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 1);//inicia el 1 para que el primer generador pueda leerlo
+    nuevo_alumno = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 
     // crear array de pid para generadores
     pid_t *pids = malloc((cant_generadores + 1) * sizeof(pid_t));
@@ -103,7 +121,7 @@ int main(void)
 
             if(i == 0)
             {
-                coordinador(pipe_respuesta, mem_comp, cant_registros);
+                coordinador(pipe_respuesta, mem_comp, cant_registros, id_cola);
             }
             else
             {
@@ -116,7 +134,7 @@ int main(void)
 
                 //
                // Proceso generador
-              /*  int idx = i - 1;
+            /*  int idx = i - 1;
                 close(pipe_peticion[idx][0]);   // generador solo escribe petición
                 close(pipe_respuesta[idx][1]);  // generador solo lee respuesta
 
