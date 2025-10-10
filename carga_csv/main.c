@@ -8,23 +8,16 @@ ID	Nombre	Apellido	Anio	Materia
 Este main solo genera procesos y llama a las funciones que deben ser desarrolladas para su funcionamiento
  */
 #include "definiciones.h"
-#include "parametros.h"
-#include "generador.h"
-#include "coordinador.h"
 #include <sys/mman.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <semaphore.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 int *bloque_actual_compartido;
 sem_t *sem_bloque;
-//SEMAFOROS DE MEMORIA COMPARTIDA
 sem_t *Mutex;
-sem_t *Capacidad_memoria;
-sem_t *Cantidad_registro;
-
-//Semaforos sumo al mutex
 sem_t *alumno_leido;
 sem_t *nuevo_alumno;
 
@@ -72,9 +65,8 @@ int crear_cola() {
 
 int main(void)
 {
-    int cant_registros = 3;
+    int cant_registros = 20;
     int cant_generadores = 2;
-    int pipe_peticion[cant_generadores][2]; //primer [] cuantos de pipe, segundo [] representa lectura y escritura
     int pipe_respuesta[cant_generadores][2];
 
     funcion_prueba_parametros();
@@ -94,11 +86,24 @@ int main(void)
 
     bloque_actual_compartido = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS,-1, 0);
     *bloque_actual_compartido = 0;
-    sem_bloque = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-    //sem_init(sem_bloque, 1, 1);
-
-    alumno_leido = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 1);//inicia el 1 para que el primer generador pueda leerlo
-    nuevo_alumno = mmap(NULL, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    
+    // Limpiar semáforos previos si existen
+    sem_unlink("/sem_bloque");
+    sem_unlink("/sem_mutex");
+    sem_unlink("/sem_alumno_leido");
+    sem_unlink("/sem_nuevo_alumno");
+    
+    // Crear semáforos con nombre
+    sem_bloque = sem_open("/sem_bloque", O_CREAT | O_EXCL, 0600, 1);
+    Mutex = sem_open("/sem_mutex", O_CREAT | O_EXCL, 0600, 1);
+    alumno_leido = sem_open("/sem_alumno_leido", O_CREAT | O_EXCL, 0600, 1);
+    nuevo_alumno = sem_open("/sem_nuevo_alumno", O_CREAT | O_EXCL, 0600, 0);
+    
+    if (sem_bloque == SEM_FAILED || Mutex == SEM_FAILED || 
+        alumno_leido == SEM_FAILED || nuevo_alumno == SEM_FAILED) {
+        perror("sem_open failed");
+        exit(1);
+    }
 
     // crear array de pid para generadores
     pid_t *pids = malloc((cant_generadores + 1) * sizeof(pid_t));
@@ -108,7 +113,7 @@ int main(void)
         return 1;
     }
     // ejemplo: mostrar el array
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i <= cant_generadores; i++)
     {
         pid_t pid = fork();
         if (pid < 0)
@@ -126,27 +131,9 @@ int main(void)
             else
             {
                 // AGREGAR GENERADOR
-                generador(pipe_peticion, pipe_respuesta, i, mem_comp);
-
-                /*
-                Prueba de comunicación entre procesos
-                */
-
-                //
-               // Proceso generador
-            /*  int idx = i - 1;
-                close(pipe_peticion[idx][0]);   // generador solo escribe petición
-                close(pipe_respuesta[idx][1]);  // generador solo lee respuesta
-
-                int pedido = (idx + 1) * 10;
-                printf("Generador %d (PID=%d) pide %d\n", idx, getpid(), pedido);
-                write(pipe_peticion[idx][1], &pedido, sizeof(int));
-
-                int respuesta;
-                read(pipe_respuesta[idx][0], &respuesta, sizeof(int));
-                printf("Generador %d recibió respuesta %d\n", idx, respuesta);
-
-                exit(0);*/
+                int idx = i - 1; // índices 0..cant_generadores-1
+                generador(pipe_respuesta, idx, mem_comp, id_cola);
+                exit(0);
             }
 
         }
@@ -157,15 +144,27 @@ int main(void)
         }
     }
 
-    // Liberar memoria y semáforo
+    // Liberar memoria y semáforos
     sem_close(sem_bloque);
-    munmap(sem_bloque, sizeof(sem_t));
+    sem_close(Mutex);
+    sem_close(alumno_leido);
+    sem_close(nuevo_alumno);
     munmap(bloque_actual_compartido, sizeof(int));
-
    // free(pids);
-     for (int i = 0; i <= cant_generadores; i++) {
-        waitpid(pids[i], NULL, 0);
+    for (int i = 0; i <= cant_generadores; i++) {
+       waitpid(pids[i], NULL, 0);
     }
+
+    // eliminar cola de mensajes al final
+    msgctl(id_cola, IPC_RMID, NULL);
+    
+    // Limpiar semáforos con nombre
+    sem_unlink("/sem_bloque");
+    sem_unlink("/sem_mutex");
+    sem_unlink("/sem_alumno_leido");
+    sem_unlink("/sem_nuevo_alumno");
+
+    printf("final\n");
 
     return 0;
 }

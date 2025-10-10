@@ -24,8 +24,7 @@
 
     Que por ahora están hardcodeadas
  */
-#include <stdio.h>
-#include "parametros.h"
+#include "definiciones.h"
 
 void funcion_prueba_parametros()
 {

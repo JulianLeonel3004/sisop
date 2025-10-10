@@ -6,23 +6,49 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/shm.h>       // Para shmget(), shmat(), shmdt(), shmctl()
+#include <semaphore.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+
 #define MAX_STR 10
 #define CLAVE_COLA 1234  // clave única para la cola
+#define TOTAL_IDS 10
+
+// Estructura de alumno
 typedef struct {
     int id;
     char nombre[MAX_STR + 1];   // +1 para el '\0' (fin de cadena)
     char apellido[MAX_STR + 1];
     int anio;
     char materia[MAX_STR + 1];
-    int leido;
 } Alumno;
 
-
-
-// Estructura de mensaje
-struct mensaje {
+// Estructura de mensaje (System V: mtype debe ser el primer campo y > 0)
+typedef struct {
+    long mtype;
     int generador_id;
-};
+} Mensaje;
+
+// Estructura para lista de IDs
+typedef struct {
+    int ids[TOTAL_IDS];
+    int cantidad;
+} ListaIDs;
+
+// Declaraciones de funciones
+void funcion_prueba_parametros();
+void funcion_prueba_generador();
+void generador(int (*pipe_respuesta)[2], int idx_pipe, Alumno* mem_comp, int id_cola);
+void coordinador(int (*pipe_respuesta)[2], Alumno* mem_comp, int cant_registros, int id_cola);
+void generar_y_enviar_ids(int (*pipe_respuesta)[2], int id_generador);
+void guardarAlumnoCSV(Alumno alumno, const char* filename, int contador_registro, FILE* fp);
+
+// Variables globales externas
+extern int *bloque_actual_compartido;
+extern sem_t *sem_bloque;
+extern sem_t *Mutex;
+extern sem_t *alumno_leido;
+extern sem_t *nuevo_alumno;
 
 #endif // DEFINICIONES_H
 
