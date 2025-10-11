@@ -8,7 +8,6 @@ ID	Nombre	Apellido	Anio	Materia
 Este main solo genera procesos y llama a las funciones que deben ser desarrolladas para su funcionamiento
  */
 #include "definiciones.h"
-#include <sys/mman.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <semaphore.h>
@@ -16,12 +15,10 @@ Este main solo genera procesos y llama a las funciones que deben ser desarrollad
 #include <fcntl.h>
 #include <signal.h>
 
-int *bloque_actual_compartido;
-sem_t *sem_bloque;
 sem_t *Mutex;
 sem_t *capacidad_memoria;
 sem_t *nuevo_alumno;
-int shmid_memoria_compartida; // ID de la memoria compartida
+int shmid_memoria_compartida;
 
 Alumno* crear_memoria_compartida(){
      int shmid; // Identificador de la memoria compartida

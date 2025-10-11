@@ -1,8 +1,5 @@
 #include "definiciones.h"
-#include <time.h>
-#include <pthread.h>
 #include <signal.h>
-#include <errno.h>
 #include <unistd.h>
 #define LECTURA 0
 #define ESCRITURA 1
