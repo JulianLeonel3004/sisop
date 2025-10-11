@@ -46,7 +46,7 @@ void coordinador(int (*pipe_respuesta)[2], Alumno* mem_comp, int cant_registros,
 
         if(contador_ids < cant_registros){ // solo si aún hay registros pendientes de generar
             generar_y_enviar_ids(pipe_respuesta, msg.generador_id, cant_registros, contador_ids, &primer_id_valido);
-            contador_ids += primer_id_valido-1;
+            contador_ids = primer_id_valido-1;
         }
         else{
             // Si no se envía una lista vacía, el generador queda esperando una respuesta del pipe
