@@ -1,22 +1,36 @@
 #include "definiciones.h"
 #include <time.h>
 #include <pthread.h>
+#include <signal.h>
+#include <errno.h>
+#include <unistd.h>
 #define LECTURA 0
 #define ESCRITURA 1
 #define ARCHIVO "alumnos.csv"
 
+// Variable global para controlar la terminación
+static volatile int terminar_proceso = 0;
+
+// Función para manejar la señal SIGTERM
+void manejar_terminacion(int sig) {
+    if (sig == SIGTERM) {
+        terminar_proceso = 1;
+    }
+}
+
 void coordinador(int (*pipe_respuesta)[2], Alumno* mem_comp, int cant_registros, int id_cola, int cant_generadores){
+    // Configurar manejador de señales
+    signal(SIGTERM, manejar_terminacion);
+    
     int contador_registro = 0;
     int primer_id_valido = 1;
     int contador_cola = 0;
     int contador_ids = 0;
     Mensaje msg;
     Alumno alumno;
-
-    printf("[Coordinador] Esperando mensajes...\n");
    
     // ABRE ARCHIVO
-    FILE* fp = fopen(ARCHIVO, "a");
+    FILE* fp = fopen(ARCHIVO, "w");
     if (fp == NULL) {
         perror("Error abriendo archivo CSV");
         return;
@@ -24,8 +38,7 @@ void coordinador(int (*pipe_respuesta)[2], Alumno* mem_comp, int cant_registros,
     // Escribir encabezado
     fprintf(fp, "id,nombre,apellido,anio,materia\n");
 
-    //int generadores_recibidos = 0;
-    while (contador_registro < cant_registros) { // Esperar a recibir de ambos generadores
+    while (contador_registro < cant_registros && !terminar_proceso) { // Espera a recibir mensajes encolados de todos los generadores
         // ESPERA MENSAJE DE GENERADOR
        if(contador_cola < cant_generadores){
         if (msgrcv(id_cola, &msg, sizeof(Mensaje) - sizeof(long), 0, 0) == -1) {
@@ -38,88 +51,74 @@ void coordinador(int (*pipe_respuesta)[2], Alumno* mem_comp, int cant_registros,
             generar_y_enviar_ids(pipe_respuesta, msg.generador_id, cant_registros, contador_ids, &primer_id_valido);
             contador_ids += primer_id_valido-1;
         }
+        else{
+            // Si no se envía una lista vacía, el generador queda esperando una respuesta del pipe
+            enviar_lista_vacia(pipe_respuesta, msg.generador_id);
+        }
 
        }
         
+        sem_wait(nuevo_alumno);
+        sem_wait(Mutex);
 
-        printf("[Coordinador] Recibido de generador: %d\n", msg.generador_id);
-       // generadores_recibidos++;
-        //GENERAR IDS
-     
-        
-        // Solo procesar si aún no hemos alcanzado cant_registros
-        //if (contador_registro < cant_registros) {
-            // Consumir registros hasta alcanzar cant_registros
-           // int registros_a_consumir = (cant_registros - contador_registro < TOTAL_IDS) ? 
-             //                          (cant_registros - contador_registro) : TOTAL_IDS;
-            
-           // for (int k = 0; k < registros_a_consumir && contador_registro < cant_registros; k++) {
-                sem_wait(nuevo_alumno);
-                sem_wait(Mutex);
+        alumno.id = mem_comp->id;
+        snprintf(alumno.nombre, MAX_STR+1, "%s", mem_comp->nombre);
+        snprintf(alumno.apellido, MAX_STR+1, "%s", mem_comp->apellido);
+        alumno.anio = mem_comp->anio;
+        snprintf(alumno.materia, MAX_STR+1, "%s", mem_comp->materia);
+                
+        sem_post(Mutex);
+        sem_post(capacidad_memoria);
 
-                alumno.id = mem_comp->id;
-                snprintf(alumno.nombre, MAX_STR+1, "%s", mem_comp->nombre);
-                snprintf(alumno.apellido, MAX_STR+1, "%s", mem_comp->apellido);
-                alumno.anio = mem_comp->anio;
-                snprintf(alumno.materia, MAX_STR+1, "%s", mem_comp->materia);
+        //GUARDAR EN CSV
+        guardarAlumnoCSV(alumno, ARCHIVO, contador_registro, fp);
 
-                sem_post(Mutex);
-                sem_post(capacidad_memoria);
-
-                //GUARDAR EN CSV
-                guardarAlumnoCSV(alumno, ARCHIVO, contador_registro, fp);
-                contador_registro++;
-                printf("contador_registro: %d\n", contador_registro);
-           // }
-       // }
+        contador_registro++;
     
     }
 
-    printf("salio del while\n");
-
     // Cerrar archivo CSV
     fclose(fp);
-    printf("archivo cerrado\n");
     
-    // La eliminación de la cola la hace el proceso padre tras esperar a los hijos
-    printf("coordinador terminando\n");
+    // Espera la señal SIGTERM para terminar
+    while(!terminar_proceso){
+        sleep(1);
+    }
+
+    printf("FIN coordinador PID: %d...\n", getpid());
     exit(0);
 }
 
 void generar_y_enviar_ids(int (*pipe_respuesta)[2], int id_generador, int cant_registros, int contador_ids, int *primer_id_valido) {
-   
     ListaIDs lista;
   
     close(pipe_respuesta[id_generador][LECTURA]);
 
+    //se calcula la cantidad de ids a consumir y que el maximo sea TOTAL_IDS (10)
     int registros_a_consumir = (cant_registros - contador_ids < TOTAL_IDS) ? 
                           (cant_registros - contador_ids) : TOTAL_IDS;
              
-  //  int ids_necesarios = TOTAL_IDS;
-
-   // int ids_necesarios = cant_registros - *ultimo_id_enviado;
-   // int ids_necesarios = *ultimo_id_enviado + 1;
+  
     lista.cantidad = registros_a_consumir;
-    printf("contador: %d\n", contador_ids);
-    printf("lista.cantidad: %d\n", lista.cantidad);
 
-    // 2. Crear IDs consecutivos del 1 al ids_necesarios
+    // Crear IDs consecutivos
     for (int i = 0; i < lista.cantidad; i++) {
         lista.ids[i] = *primer_id_valido + i;
     }
 
+    //se guarda para la siguiente vez que se generen ids
     *primer_id_valido = lista.ids[lista.cantidad - 1] + 1;
 
-    // 3. Mezclar (Fisher–Yates)
-   /*for (int i = lista.cantidad - 1; i > 0; i--) {
-        int j = rand() % (i + 1);
-        int temp = lista.ids[i];
-        lista.ids[i] = lista.ids[j];
-        lista.ids[j] = temp;
-    }*/
-    
-    //se envia primero la cantidad de IDs, luego los IDs
-  //  write(pipe_respuesta[id_generador][ESCRITURA], &lista.cantidad, sizeof(int));
+    //se envia la lista de ids al generador
+    write(pipe_respuesta[id_generador][ESCRITURA], &lista, sizeof(lista));
+}
+
+void enviar_lista_vacia(int (*pipe_respuesta)[2], int id_generador){
+    ListaIDs lista;
+  
+    close(pipe_respuesta[id_generador][LECTURA]);
+
+    lista.cantidad = 0;
     write(pipe_respuesta[id_generador][ESCRITURA], &lista, sizeof(lista));
 }
 
@@ -133,5 +132,4 @@ void guardarAlumnoCSV(Alumno alumno, const char* filename, int contador_registro
             alumno.materia);
 
     fflush(fp); // Forzar escritura al disco
-    printf("Alumno guardado en %s\n", filename);
 }

@@ -14,12 +14,14 @@ Este main solo genera procesos y llama a las funciones que deben ser desarrollad
 #include <semaphore.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <signal.h>
 
 int *bloque_actual_compartido;
 sem_t *sem_bloque;
 sem_t *Mutex;
 sem_t *capacidad_memoria;
 sem_t *nuevo_alumno;
+int shmid_memoria_compartida; // ID de la memoria compartida
 
 Alumno* crear_memoria_compartida(){
      int shmid; // Identificador de la memoria compartida
@@ -37,6 +39,9 @@ Alumno* crear_memoria_compartida(){
         perror("shmget"); // Imprime error si falla la creación
         return NULL;      // Termina el programa
     }
+
+    // Guardar el ID globalmente para poder liberarlo después
+    shmid_memoria_compartida = shmid;
 
     // Asociar la memoria compartida al espacio de direcciones del proceso
     // shm_ptr apunta a la memoria compartida
@@ -62,12 +67,11 @@ int crear_cola() {
 
 int main(void)
 {
-    int cant_registros = 15;
+    int cant_registros = 20;
     int cant_generadores = 3;
     int pipe_respuesta[cant_generadores][2];
 
     funcion_prueba_parametros();
-
 
     // CREAR los pipes ANTES de fork
     for (int g = 0; g < cant_generadores; g++) {
@@ -81,26 +85,16 @@ int main(void)
 
     int id_cola = crear_cola();
 
-    bloque_actual_compartido = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS,-1, 0);
-    *bloque_actual_compartido = 0;
-    
+   
     // Limpiar semáforos previos si existen
-    sem_unlink("/sem_bloque");
     sem_unlink("/sem_mutex");
     sem_unlink("/sem_capacidad_memoria");
     sem_unlink("/sem_nuevo_alumno");
     
     // Crear semáforos con nombre
-    sem_bloque = sem_open("/sem_bloque", O_CREAT | O_EXCL, 0600, 1);
     Mutex = sem_open("/sem_mutex", O_CREAT | O_EXCL, 0600, 1);
     capacidad_memoria = sem_open("/sem_capacidad_memoria", O_CREAT | O_EXCL, 0600, 1);
     nuevo_alumno = sem_open("/sem_nuevo_alumno", O_CREAT | O_EXCL, 0600, 0);
-    
-    if (sem_bloque == SEM_FAILED || Mutex == SEM_FAILED || 
-        capacidad_memoria == SEM_FAILED || nuevo_alumno == SEM_FAILED) {
-        perror("sem_open failed");
-        exit(1);
-    }
 
     // crear array de pid para generadores
     pid_t *pids = malloc((cant_generadores + 1) * sizeof(pid_t));
@@ -130,7 +124,6 @@ int main(void)
                 // AGREGAR GENERADOR
                 int idx = i - 1; // índices 0..cant_generadores-1
                 generador(pipe_respuesta, idx, mem_comp, id_cola);
-                exit(0);
             }
 
         }
@@ -141,33 +134,56 @@ int main(void)
         }
     }
 
-    // Liberar memoria y semáforos
-    sem_close(sem_bloque);
+    //imprimir los pids
+    for (int i = 0; i <= cant_generadores; i++) {
+        if(i == 0){
+            printf("Coordinador, PID=%d\n", pids[i]);
+        }else{
+            printf("Generador, PID=%d\n", pids[i]);
+        }
+    }
+
+    // Esperar Enter para terminar todos los procesos
+    printf("Presiona Enter para terminar todos los procesos...\n");
+    getchar();
+    
+    // Enviar señal SIGTERM a todos los procesos hijos (incluyendo coordinador)
+    for (int i = 0; i <= cant_generadores; i++) {
+        if (pids[i] > 0) {
+            kill(pids[i], SIGTERM);
+        }
+    }
+    
+    // Esperar a que terminen todos los procesos hijos
+    for (int i = 0; i <= cant_generadores; i++) {
+        if (pids[i] > 0) {
+            waitpid(pids[i], NULL, 0);
+        }
+    }
+
+    // Liberar semáforos
     sem_close(Mutex);
     sem_close(capacidad_memoria);
     sem_close(nuevo_alumno);
-    munmap(bloque_actual_compartido, sizeof(int));
-   // free(pids);
-
-   waitpid(pids[0], NULL, 0); //espero a que termine el coordinador
-
-   free(pids);
-   /* for (int i = 0; i <= cant_generadores; i++) {
-       printf("Esperando proceso %d (PID: %d)\n", i, pids[i]);
-       waitpid(pids[i], NULL, 0);
-       printf("Proceso %d terminado\n", i);
-    }*/
-
-    // eliminar cola de mensajes al final
-    msgctl(id_cola, IPC_RMID, NULL);
+    
+    // Desasociar memoria compartida
+    shmdt(mem_comp);
+    
+    // Eliminar segmento de memoria compartida
+    shmctl(shmid_memoria_compartida, IPC_RMID, NULL);
     
     // Limpiar semáforos con nombre
-    sem_unlink("/sem_bloque");
     sem_unlink("/sem_mutex");
     sem_unlink("/sem_capacidad_memoria");
     sem_unlink("/sem_nuevo_alumno");
 
-    printf("final\n");
+    // eliminar cola de mensajes
+    msgctl(id_cola, IPC_RMID, NULL);
+
+    // Liberar array de PIDs
+    free(pids);
+
+    printf("Finalizo\n");
 
     return 0;
 }

@@ -42,6 +42,7 @@ Alumno* crear_memoria_compartida();
 void generador(int (*pipe_respuesta)[2], int idx_pipe, Alumno* mem_comp, int id_cola);
 void coordinador(int (*pipe_respuesta)[2], Alumno* mem_comp, int cant_registros, int id_cola, int cant_generadores);
 void generar_y_enviar_ids(int (*pipe_respuesta)[2], int id_generador, int cant_registros, int contador_registro, int *ultimo_id_enviado);
+void enviar_lista_vacia(int (*pipe_respuesta)[2], int id_generador);
 void guardarAlumnoCSV(Alumno alumno, const char* filename, int contador_registro, FILE* fp);
 
 // Variables globales externas
