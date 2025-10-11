@@ -18,11 +18,8 @@ Este main solo genera procesos y llama a las funciones que deben ser desarrollad
 int *bloque_actual_compartido;
 sem_t *sem_bloque;
 sem_t *Mutex;
-sem_t *alumno_leido;
+sem_t *capacidad_memoria;
 sem_t *nuevo_alumno;
-
-// Declaración de función
-Alumno* crear_memoria_compartida();
 
 Alumno* crear_memoria_compartida(){
      int shmid; // Identificador de la memoria compartida
@@ -65,8 +62,8 @@ int crear_cola() {
 
 int main(void)
 {
-    int cant_registros = 20;
-    int cant_generadores = 2;
+    int cant_registros = 15;
+    int cant_generadores = 3;
     int pipe_respuesta[cant_generadores][2];
 
     funcion_prueba_parametros();
@@ -90,17 +87,17 @@ int main(void)
     // Limpiar semáforos previos si existen
     sem_unlink("/sem_bloque");
     sem_unlink("/sem_mutex");
-    sem_unlink("/sem_alumno_leido");
+    sem_unlink("/sem_capacidad_memoria");
     sem_unlink("/sem_nuevo_alumno");
     
     // Crear semáforos con nombre
     sem_bloque = sem_open("/sem_bloque", O_CREAT | O_EXCL, 0600, 1);
     Mutex = sem_open("/sem_mutex", O_CREAT | O_EXCL, 0600, 1);
-    alumno_leido = sem_open("/sem_alumno_leido", O_CREAT | O_EXCL, 0600, 1);
+    capacidad_memoria = sem_open("/sem_capacidad_memoria", O_CREAT | O_EXCL, 0600, 1);
     nuevo_alumno = sem_open("/sem_nuevo_alumno", O_CREAT | O_EXCL, 0600, 0);
     
     if (sem_bloque == SEM_FAILED || Mutex == SEM_FAILED || 
-        alumno_leido == SEM_FAILED || nuevo_alumno == SEM_FAILED) {
+        capacidad_memoria == SEM_FAILED || nuevo_alumno == SEM_FAILED) {
         perror("sem_open failed");
         exit(1);
     }
@@ -126,7 +123,7 @@ int main(void)
 
             if(i == 0)
             {
-                coordinador(pipe_respuesta, mem_comp, cant_registros, id_cola);
+                coordinador(pipe_respuesta, mem_comp, cant_registros, id_cola, cant_generadores);
             }
             else
             {
@@ -147,13 +144,19 @@ int main(void)
     // Liberar memoria y semáforos
     sem_close(sem_bloque);
     sem_close(Mutex);
-    sem_close(alumno_leido);
+    sem_close(capacidad_memoria);
     sem_close(nuevo_alumno);
     munmap(bloque_actual_compartido, sizeof(int));
    // free(pids);
-    for (int i = 0; i <= cant_generadores; i++) {
+
+   waitpid(pids[0], NULL, 0); //espero a que termine el coordinador
+
+   free(pids);
+   /* for (int i = 0; i <= cant_generadores; i++) {
+       printf("Esperando proceso %d (PID: %d)\n", i, pids[i]);
        waitpid(pids[i], NULL, 0);
-    }
+       printf("Proceso %d terminado\n", i);
+    }*/
 
     // eliminar cola de mensajes al final
     msgctl(id_cola, IPC_RMID, NULL);
@@ -161,7 +164,7 @@ int main(void)
     // Limpiar semáforos con nombre
     sem_unlink("/sem_bloque");
     sem_unlink("/sem_mutex");
-    sem_unlink("/sem_alumno_leido");
+    sem_unlink("/sem_capacidad_memoria");
     sem_unlink("/sem_nuevo_alumno");
 
     printf("final\n");
