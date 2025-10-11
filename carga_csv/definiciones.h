@@ -35,6 +35,18 @@ typedef struct {
     int cantidad;
 } ListaIDs;
 
+// ---- Estructura de parámetros ----
+typedef struct {
+    int generadores;        // -g N (>=1)
+    int total_registros;    // -r M (>=1)
+    const char* salida_csv; // -o (default "datos.csv")
+    int mostrar_ayuda;     // -h / --help
+} Params;
+
+// ---- Prototipos ----
+int parse_params(int argc, char** argv, Params* out);
+int genera_readme(const Params* p);
+
 // Declaraciones de funciones
 void funcion_prueba_parametros();
 Alumno* crear_memoria_compartida();

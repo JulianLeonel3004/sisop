@@ -62,10 +62,16 @@ int crear_cola() {
     return id_cola;
 }
 
-int main(void)
+int main(int argc, char** argv)
 {
-    int cant_registros = 20;
-    int cant_generadores = 3;
+    // Leé parámetros (si no querés usarlos aún, igual valida)
+    Params p;
+    if (!parse_params(argc, argv, &p)) {
+        return 1;
+    }
+    int cant_registros   = p.total_registros;
+    int cant_generadores = p.generadores;
+    
     int pipe_respuesta[cant_generadores][2];
 
     funcion_prueba_parametros();
