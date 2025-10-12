@@ -49,17 +49,26 @@ int genera_readme(const Params* p);
 
 // Declaraciones de funciones
 void funcion_prueba_parametros();
-Alumno* crear_memoria_compartida();
+void crear_memoria_compartida();
 void generador(int (*pipe_respuesta)[2], int idx_pipe, Alumno* mem_comp, int id_cola);
 void coordinador(int (*pipe_respuesta)[2], Alumno* mem_comp, int cant_registros, int id_cola, int cant_generadores);
 void generar_y_enviar_ids(int (*pipe_respuesta)[2], int id_generador, int cant_registros, int contador_registro, int *ultimo_id_enviado);
 void enviar_lista_vacia(int (*pipe_respuesta)[2], int id_generador);
 void guardarAlumnoCSV(Alumno alumno, const char* filename, int contador_registro, FILE* fp);
+int crear_cola();
+void limpiar_semaforos();
+void crear_semaforos();
+void liberar_semaforos();
+void liberar_memoria_compartida();
+void liberar_todo(int id_cola, int pids[]);
+void enviar_kill(int pids[], int cant_generadores);
 
 // Variables globales externas
 extern sem_t *Mutex;
 extern sem_t *capacidad_memoria;
 extern sem_t *nuevo_alumno;
+extern int shmid_memoria_compartida;
+extern Alumno *mem_comp;
 
 #endif // DEFINICIONES_H
 

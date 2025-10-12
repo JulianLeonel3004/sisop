@@ -1,10 +1,10 @@
 # Compilar
 cargador_file: main.c coordinador.c generador.c parametros.c
-	gcc -o cargador_file main.c coordinador.c generador.c parametros.c -lpthread
+	gcc -o cargador_file main.c coordinador.c generador.c parametros.c  sincronizacion.c
 
-# Ejecutar con parámetros -r38 -g4
+# Ejecutar con parámetros -r38 -g4 // predeterminado
 run:
-	@echo "" | ./cargador_file -r38 -g4
+	./cargador_file -r38 -g4
 
 # Mostrar ayuda
 help:

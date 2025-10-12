@@ -83,8 +83,3 @@ int genera_readme(const Params* p) {
     fclose(f);
     return 1;
 }
-
-// Prueba simple
-void funcion_prueba_parametros(void) {
-    printf("Soy parametros\n");
-}

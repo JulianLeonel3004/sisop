@@ -8,8 +8,7 @@
 // Variable global para controlar la terminación
 static volatile int terminar_proceso = 0;
 
-// Función para manejar la señal SIGTERM
-void manejar_terminacion(int sig) {
+void manejar_terminacion_coordinador(int sig) {
     if (sig == SIGTERM) {
         terminar_proceso = 1;
     }
@@ -17,7 +16,7 @@ void manejar_terminacion(int sig) {
 
 void coordinador(int (*pipe_respuesta)[2], Alumno* mem_comp, int cant_registros, int id_cola, int cant_generadores){
     // Configurar manejador de señales
-    signal(SIGTERM, manejar_terminacion);
+    signal(SIGTERM, manejar_terminacion_coordinador);
     
     int contador_registro = 0;
     int primer_id_valido = 1;

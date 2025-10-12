@@ -1,11 +1,8 @@
 Para compilar y crear ejecutable
-gcc -o programa main.c generador.c coordinador.c parametros.c
+make cargador_file
 
-Se ejecuta 
-./programa
+La ejecución default es con 38 registros y 4 generadores
+make run
 
-
-el nombre "programa" es un nombre custom que se puede elegir al momento de crear el ejecutable
-
-
-
+Para ejecuciones personalizadas puede ver la ayuda
+make help
