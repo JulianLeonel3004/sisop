@@ -26,7 +26,7 @@ int id_cola = 0;
 int cant_generadores = 0;
 
 void manejar_terminacion_main(int sig) {
-        if (sig == SIGTERM) {
+        if (sig == SIGTERM || sig == SIGINT) {
             printf("Terminando main...\n");
             liberar_todo(id_cola, pids);
             terminar_proceso = 1;
@@ -48,6 +48,7 @@ int main(int argc, char** argv)
 
     
     signal(SIGTERM, manejar_terminacion_main);
+    signal(SIGINT, manejar_terminacion_main);
 
     // CREAR los pipes ANTES de fork
     for (int g = 0; g < cant_generadores; g++) {
@@ -114,18 +115,25 @@ int main(int argc, char** argv)
         }
     }
 
-    // Esperar Enter para terminar todos los procesos
-    printf("Presiona Enter para terminar todos los procesos...\n");
-    getchar();
+    // Esperar Enter para terminar todos los procesos o recibir señal
+    printf("Presiona Enter para terminar todos los procesos o Ctrl+C para terminar...\n");
+    while (!terminar_proceso) {
+        if (getchar() == '\n') {
+            break;
+        }
+    }
     
-    // Enviar señal SIGTERM a todos los procesos hijos (incluyendo coordinador)
-    enviar_kill(pids, cant_generadores);
-    
-    // Esperar a que terminen todos los procesos hijos
-    enviar_kill(pids, cant_generadores);
+    // Solo ejecutar limpieza si no se recibió una señal
+    if (!terminar_proceso) {
+        // Enviar señal SIGTERM a todos los procesos hijos (incluyendo coordinador)
+        enviar_kill(pids, cant_generadores);
+        
+        // Esperar a que terminen todos los procesos hijos
+        enviar_kill(pids, cant_generadores);
 
-    // Libera semaforos, memoria compartida, cola de mensajes y array de pids
-    liberar_todo(id_cola, pids);
+        // Libera semaforos, memoria compartida, cola de mensajes y array de pids
+        liberar_todo(id_cola, pids);
+    }
 
     printf("Finalizo\n");
 
