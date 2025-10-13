@@ -29,9 +29,8 @@ int cant_generadores = 0;
 
 // Función de limpieza que se ejecuta automáticamente al terminar
 void limpieza_automatica(void) {
-    // Solo ejecutar limpieza en el proceso principal (padre)
-    if (pids != NULL && !terminar_proceso && getpid() == getpgrp()) {
-        printf("Ejecutando limpieza automática en proceso principal...\n");
+    if (pids != NULL && !terminar_proceso) {
+        printf("Ejecutando limpieza automática...\n");
         enviar_kill(pids, cant_generadores);
         // Esperar un poco para que los procesos hijos terminen
         sleep(1);
