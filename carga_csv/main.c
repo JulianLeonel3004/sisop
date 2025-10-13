@@ -15,6 +15,7 @@ Este main solo genera procesos y llama a las funciones que deben ser desarrollad
 #include <fcntl.h>
 #include <signal.h>
 #include <string.h>
+#include <sys/prctl.h>
 
 sem_t *Mutex;
 sem_t *capacidad_memoria;
@@ -88,6 +89,14 @@ int main(int argc, char** argv)
     // Crear semáforos con nombre
     crear_semaforos();
 
+    // Crear un nuevo grupo de procesos para que todos terminen juntos
+    // El proceso principal será el líder del grupo
+    pid_t grupo_procesos = setsid();
+    if (grupo_procesos == -1) {
+        perror("Error al crear grupo de procesos");
+        return 1;
+    }
+
     // crear array de pid para generadores
     pids = malloc((cant_generadores + 1) * sizeof(pid_t));
     if (pids == NULL)
@@ -106,6 +115,15 @@ int main(int argc, char** argv)
         }
         if (pid == 0)
         {
+            // Los procesos hijos se configuran para terminar cuando el padre muera
+            signal(SIGTERM, SIG_DFL);
+            signal(SIGINT, SIG_DFL);
+            
+            // Configurar para que terminen si el padre muere
+            prctl(PR_SET_PDEATHSIG, SIGTERM);
+            
+            // Configurar SIGHUP para terminar cuando el líder del grupo muera
+            signal(SIGHUP, SIG_DFL);
 
             if(i == 0)
             {
