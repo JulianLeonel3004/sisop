@@ -12,7 +12,7 @@
 #include <fcntl.h>      // para O_CREAT | O_EXCL
 #include <sys/stat.h>   // para permisos (0600)
 
-#define MAX_STR 10
+#define MAX_STR 20
 #define CLAVE_COLA 1234  // clave única para la cola
 #define TOTAL_IDS 10
 

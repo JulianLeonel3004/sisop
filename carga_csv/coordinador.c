@@ -32,7 +32,7 @@ void coordinador(int (*pipe_respuesta)[2], Alumno* mem_comp, int cant_registros,
         return;
     }
     // Escribir encabezado
-    fprintf(fp, "id,nombre,apellido,anio,materia\n");
+    fprintf(fp, "ID,Nombre,Apellido,Anio,Materia\n");
 
     while (contador_registro < cant_registros && !terminar_proceso) { // Espera a recibir mensajes encolados de todos los generadores
         // ESPERA MENSAJE DE GENERADOR
