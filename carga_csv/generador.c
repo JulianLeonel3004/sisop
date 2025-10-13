@@ -88,6 +88,5 @@ void generador(int (*pipe_respuesta)[2], int idx_pipe, Alumno* mem_comp, int id_
         sleep(1);
     }
 
-    printf("FIN generador PID: %d...\n", getpid());
     exit(0);
 }

@@ -81,7 +81,6 @@ void coordinador(int (*pipe_respuesta)[2], Alumno* mem_comp, int cant_registros,
         sleep(1);
     }
 
-    printf("FIN coordinador PID: %d...\n", getpid());
     exit(0);
 }
 

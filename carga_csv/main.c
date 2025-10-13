@@ -29,7 +29,6 @@ int cant_generadores = 0;
 
 // Función de limpieza que se ejecuta automáticamente al terminar
 void limpieza_automatica(void) {
-    printf("Ejecutando limpieza automática...\n");
     if (pids != NULL && !terminar_proceso) {
         enviar_kill(pids, cant_generadores);
         // Esperar un poco para que los procesos hijos terminen
@@ -145,6 +144,7 @@ int main(int argc, char** argv)
     }
 
     //imprimir los pids
+    printf("Padre PID=%d:\n", getpid());
     for (int i = 0; i <= cant_generadores; i++) {
         if(i == 0){
             printf("Coordinador, PID=%d\n", pids[i]);
@@ -155,7 +155,7 @@ int main(int argc, char** argv)
     
 
     // Esperar Enter para terminar todos los procesos o recibir señal
-    printf("Presiona Enter para terminar todos los procesos o Ctrl+C para terminar...\n");
+    printf("Presiona Enter para terminar...\n");
     while (!terminar_proceso) {
         char c = getchar();
         if (c == '\n') {
@@ -175,8 +175,6 @@ int main(int argc, char** argv)
         // Libera semaforos, memoria compartida, cola de mensajes y array de pids
         liberar_todo(id_cola, pids);
     }
-
-    printf("Finalizo\n");
 
     return 0;
 }

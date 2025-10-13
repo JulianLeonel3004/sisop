@@ -1,5 +1,5 @@
 # Compilar
-cargador_file:
+compilar:
 		gcc -o cargador_file main.c coordinador.c generador.c parametros.c  sincronizacion.c
 
 # Ejecutar con parámetros -r38 -g4 // predeterminado
@@ -20,7 +20,7 @@ monitor-ipc:
 
 # Monitorear semáforos
 monitor-sem:
-	lsof -p $$(ps aux | grep '[c]argador_file' | awk '{print $$2}' | sort -n | head -n 1) | grep PSXSEM
+	ls /dev/shm/sem.*
 
 # Limpiar
 clean:
