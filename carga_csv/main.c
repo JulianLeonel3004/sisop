@@ -90,13 +90,6 @@ int main(int argc, char** argv)
     // Crear semáforos con nombre
     crear_semaforos();
 
-    // Crear un nuevo grupo de procesos para que todos terminen juntos
-    // El proceso principal será el líder del grupo
-    pid_t grupo_procesos = setsid();
-    if (grupo_procesos == -1) {
-        perror("Error al crear grupo de procesos");
-        return 1;
-    }
 
     // crear array de pid para generadores
     pids = malloc((cant_generadores + 1) * sizeof(pid_t));
@@ -123,8 +116,10 @@ int main(int argc, char** argv)
             // Configurar para que terminen si el padre muere
             prctl(PR_SET_PDEATHSIG, SIGTERM);
             
-            // Configurar SIGHUP para terminar cuando el líder del grupo muera
-            signal(SIGHUP, SIG_DFL);
+            // Crear un nuevo grupo de procesos para este hijo
+            // Esto hace que cuando el padre muera, el kernel termine automáticamente
+            // todos los procesos del grupo
+            setsid();
 
             if(i == 0)
             {
