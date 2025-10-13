@@ -25,6 +25,17 @@ pid_t *pids;
 int id_cola = 0;
 int cant_generadores = 0;
 
+// Función de limpieza que se ejecuta automáticamente al terminar
+void limpieza_automatica(void) {
+    printf("Ejecutando limpieza automática...\n");
+    if (pids != NULL) {
+        enviar_kill(pids, cant_generadores);
+        // Esperar un poco para que los procesos hijos terminen
+        sleep(1);
+        liberar_todo(id_cola, pids);
+    }
+}
+
 void manejar_terminacion_main(int sig) {
         if (sig == SIGTERM || sig == SIGINT) {
             printf("Terminando main...\n");
@@ -49,6 +60,9 @@ int main(int argc, char** argv)
     
     signal(SIGTERM, manejar_terminacion_main);
     signal(SIGINT, manejar_terminacion_main);
+    
+    // Registrar función de limpieza automática
+    atexit(limpieza_automatica);
 
     // CREAR los pipes ANTES de fork
     for (int g = 0; g < cant_generadores; g++) {
@@ -113,6 +127,35 @@ int main(int argc, char** argv)
         }else{
             printf("Generador, PID=%d\n", pids[i]);
         }
+    }
+    
+    // Lanzar proceso supervisor
+    pid_t supervisor_pid = fork();
+    if (supervisor_pid == 0) {
+        // Proceso hijo - supervisor
+        char pid_str[20];
+        char cant_gen_str[20];
+        char pids_str[200] = "";
+        
+        sprintf(pid_str, "%d", getppid());
+        sprintf(cant_gen_str, "%d", cant_generadores);
+        
+        // Construir string con todos los PIDs
+        for (int i = 0; i <= cant_generadores; i++) {
+            char temp[20];
+            sprintf(temp, " %d", pids[i]);
+            strcat(pids_str, temp);
+        }
+        
+        // Ejecutar supervisor
+        char *args[] = {"./supervisor", pid_str, cant_gen_str, NULL};
+        execv("./supervisor", args);
+        perror("Error al ejecutar supervisor");
+        exit(1);
+    } else if (supervisor_pid > 0) {
+        printf("Supervisor iniciado con PID=%d\n", supervisor_pid);
+    } else {
+        perror("Error al crear proceso supervisor");
     }
 
     // Esperar Enter para terminar todos los procesos o recibir señal
