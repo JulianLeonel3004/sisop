@@ -29,7 +29,9 @@ int cant_generadores = 0;
 
 // Función de limpieza que se ejecuta automáticamente al terminar
 void limpieza_automatica(void) {
-    if (pids != NULL && !terminar_proceso) {
+    // Solo ejecutar limpieza en el proceso principal (padre)
+    if (pids != NULL && !terminar_proceso && getpid() == getpgrp()) {
+        printf("Ejecutando limpieza automática en proceso principal...\n");
         enviar_kill(pids, cant_generadores);
         // Esperar un poco para que los procesos hijos terminen
         sleep(1);
@@ -42,11 +44,13 @@ void manejar_terminacion_main(int sig) {
         if (sig == SIGTERM || sig == SIGINT) {
             printf("Terminando main...\n");
             terminar_proceso = 1;
-            enviar_kill(pids, cant_generadores);
-            // Esperar un poco para que los procesos hijos terminen
-            sleep(1);
-            liberar_todo(id_cola, pids);
-            pids = NULL; // Evitar double free
+            if (pids != NULL) {
+                enviar_kill(pids, cant_generadores);
+                // Esperar un poco para que los procesos hijos terminen
+                sleep(1);
+                liberar_todo(id_cola, pids);
+                pids = NULL; // Evitar double free
+            }
             exit(0);
         }
 }
@@ -165,15 +169,16 @@ int main(int argc, char** argv)
     }
     
     // Solo ejecutar limpieza si no se recibió una señal
-    if (!terminar_proceso) {
+    if (!terminar_proceso && pids != NULL) {
         // Enviar señal SIGTERM a todos los procesos hijos (incluyendo coordinador)
         enviar_kill(pids, cant_generadores);
         
         // Esperar a que terminen todos los procesos hijos
-        enviar_kill(pids, cant_generadores);
+        sleep(1);
 
         // Libera semaforos, memoria compartida, cola de mensajes y array de pids
         liberar_todo(id_cola, pids);
+        pids = NULL; // Evitar double free
     }
 
     return 0;
