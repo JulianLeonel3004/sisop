@@ -14,6 +14,7 @@ Este main solo genera procesos y llama a las funciones que deben ser desarrollad
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <string.h>
 
 sem_t *Mutex;
 sem_t *capacidad_memoria;
