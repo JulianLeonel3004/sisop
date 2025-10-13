@@ -29,20 +29,25 @@ int cant_generadores = 0;
 // Función de limpieza que se ejecuta automáticamente al terminar
 void limpieza_automatica(void) {
     printf("Ejecutando limpieza automática...\n");
-    if (pids != NULL) {
+    if (pids != NULL && !terminar_proceso) {
         enviar_kill(pids, cant_generadores);
         // Esperar un poco para que los procesos hijos terminen
         sleep(1);
         liberar_todo(id_cola, pids);
+        pids = NULL; // Evitar double free
     }
 }
 
 void manejar_terminacion_main(int sig) {
         if (sig == SIGTERM || sig == SIGINT) {
             printf("Terminando main...\n");
-            liberar_todo(id_cola, pids);
             terminar_proceso = 1;
             enviar_kill(pids, cant_generadores);
+            // Esperar un poco para que los procesos hijos terminen
+            sleep(1);
+            liberar_todo(id_cola, pids);
+            pids = NULL; // Evitar double free
+            exit(0);
         }
 }
 
@@ -130,41 +135,15 @@ int main(int argc, char** argv)
         }
     }
     
-    // Lanzar proceso supervisor
-    pid_t supervisor_pid = fork();
-    if (supervisor_pid == 0) {
-        // Proceso hijo - supervisor
-        char pid_str[20];
-        char cant_gen_str[20];
-        char pids_str[200] = "";
-        
-        sprintf(pid_str, "%d", getppid());
-        sprintf(cant_gen_str, "%d", cant_generadores);
-        
-        // Construir string con todos los PIDs
-        for (int i = 0; i <= cant_generadores; i++) {
-            char temp[20];
-            sprintf(temp, " %d", pids[i]);
-            strcat(pids_str, temp);
-        }
-        
-        // Ejecutar supervisor
-        char *args[] = {"./supervisor", pid_str, cant_gen_str, NULL};
-        execv("./supervisor", args);
-        perror("Error al ejecutar supervisor");
-        exit(1);
-    } else if (supervisor_pid > 0) {
-        printf("Supervisor iniciado con PID=%d\n", supervisor_pid);
-    } else {
-        perror("Error al crear proceso supervisor");
-    }
 
     // Esperar Enter para terminar todos los procesos o recibir señal
     printf("Presiona Enter para terminar todos los procesos o Ctrl+C para terminar...\n");
     while (!terminar_proceso) {
-        if (getchar() == '\n') {
+        char c = getchar();
+        if (c == '\n') {
             break;
         }
+        // Si no es Enter, continuar esperando
     }
     
     // Solo ejecutar limpieza si no se recibió una señal
