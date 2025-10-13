@@ -1,6 +1,6 @@
 # Compilar
-cargador_file: main.c coordinador.c generador.c parametros.c
-	gcc -o cargador_file main.c coordinador.c generador.c parametros.c  sincronizacion.c
+cargador_file:
+		gcc -o cargador_file main.c coordinador.c generador.c parametros.c  sincronizacion.c
 
 # Ejecutar con parámetros -r38 -g4 // predeterminado
 run:
